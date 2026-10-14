@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fraktal Yörünge + Osiloskop — 5 Fraktal</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#14161f;--panel:#1d2130;--panel2:#232840;--line:#2e3550;--txt:#eef0f7;--muted:#9aa3bd;--faint:#6b7390;--green:#10b981;--rose:#f43f5e;--amber:#f59e0b;--cyan:#22d3ee}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:'Outfit',sans-serif;min-height:100dvh}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+  header{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+  h1{font-size:29px;margin:0;letter-spacing:-.02em}
+  h1 .accent{color:var(--green)}
+  .sub{color:var(--muted);font-size:14.5px;max-width:660px;margin-top:6px;line-height:1.55}
+  .formula{font-family:'JetBrains Mono',monospace;background:#0f1220;border:1px solid var(--line);padding:8px 12px;border-radius:10px;font-size:13px;color:var(--cyan);white-space:nowrap}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+  .tab{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:12px;padding:10px 14px;font-family:inherit;font-size:13.5px;font-weight:700;cursor:pointer;transition:all .15s}
+  .tab small{display:block;font-weight:400;font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:2px}
+  .tab:hover{transform:translateY(-1px);border-color:var(--green);color:#fff}
+  .tab.active{background:var(--green);border-color:var(--green);color:#06281d}
+  .tab.active small{color:#06281d;opacity:.75}
+  .grid{display:grid;grid-template-columns:1fr 330px;gap:16px}
+  @media(max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 4px 16px -2px rgba(0,0,0,.35)}
+  .card h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:2px 0 10px;display:flex;align-items:center;gap:8px}
+  .stage{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0b0e16;cursor:crosshair;touch-action:none}
+  canvas#fractal,canvas#overlay{display:block;width:100%;height:auto}
+  canvas#overlay{position:absolute;inset:0;pointer-events:none}
+  .hintbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+  .btn:hover{transform:translateY(-1px);border-color:var(--green)}
+  .btn.primary{background:var(--green);border-color:var(--green);color:#06281d}
+  .btn.danger-on{background:var(--rose);border-color:var(--rose);color:#fff}
+  .btn.small{padding:6px 10px;font-size:12px}
+  .pill{font-size:12px;color:var(--muted);background:#0f1220;border:1px solid var(--line);border-radius:999px;padding:6px 11px}
+  .tooltip{position:absolute;pointer-events:none;background:rgba(10,13,24,.92);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--cyan);display:none;z-index:5;white-space:nowrap}
+  .rendering{position:absolute;top:10px;left:10px;background:rgba(10,13,24,.85);border:1px solid var(--line);color:var(--amber);font-size:12px;border-radius:999px;padding:5px 11px;display:none;font-weight:600}
+  .badge{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:7px 13px;font-weight:700;font-size:13px}
+  .badge .dot{width:10px;height:10px;border-radius:50%;background:currentColor}
+  .badge.escape{background:rgba(244,63,94,.14);color:#ff8aa0;border:1px solid rgba(244,63,94,.45)}
+  .badge.bound{background:rgba(16,185,129,.14);color:#5eeab8;border:1px solid rgba(16,185,129,.45)}
+  .badge.cycle{background:rgba(34,211,238,.13);color:#7ce7f7;border:1px solid rgba(34,211,238,.45)}
+  .kv{display:grid;grid-template-columns:118px 1fr;row-gap:8px;column-gap:10px;font-size:13px;margin:12px 0 4px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0;font-family:'JetBrains Mono',monospace;font-size:12.5px;word-break:break-all}
+  label.lbl{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;margin:12px 0 6px}
+  label.lbl b{color:var(--txt);font-family:'JetBrains Mono',monospace}
+  input[type=range]{width:100%;accent-color:var(--green)}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  canvas.mini{width:100%;height:auto;background:#0b0e16;border:1px solid var(--line);border-radius:10px;display:block}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:10px}
+  .sw{width:12px;height:12px;border-radius:4px;display:inline-block;margin-right:6px;vertical-align:-1px}
+  .presets{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+  .explain{margin-top:16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media(max-width:760px){.explain{grid-template-columns:1fr}}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;font-size:13px;line-height:1.6;color:var(--muted)}
+  .step strong{color:var(--txt);display:block;margin-bottom:4px;font-size:13.5px}
+  .scope-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin:8px 0 6px;font-family:'JetBrains Mono',monospace}
+  footer{color:var(--faint);font-size:12px;margin-top:18px;text-align:center}
+  #juliaPanel{display:none;background:#0f1220;border:1px dashed var(--cyan);border-radius:12px;padding:10px 12px;margin-top:10px}
+  #juliaPanel.on{display:block}
+  svg.ic{width:15px;height:15px;vertical-align:-2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Fraktal <span class="accent">Yörünge</span> + Osiloskop</h1>
+      <div class="sub">Fareyi fraktal üzerinde <b style="color:#fff">gezdir</b>: o noktanın fonksiyon tekrarı anında hesaplanıp <b style="color:#fff">çizgi</b> olarak çizilir. Çizgi dışarı fırlıyorsa <b style="color:#ff8aa0">kaçıyor</b>, dolanıp kalıyorsa <b style="color:#5eeab8">döngüsel / sınırlı</b> — gözünle gör, osiloskopta izle, kulağınla duy. Sekmelerle 5 fraktal arasında geçiş yap.</div>
+    </div>
+    <div class="formula" id="formulaBox">z<sub>n+1</sub> = z<sub>n</sub>² + c</div>
+  </header>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/></svg><span id="stageTitle">Mandelbrot — gezdir, tekerlekle yakınlaş, sürükleyerek kaydır</span></h2>
+      <div class="stage" id="stage">
+        <canvas id="fractal" width="920" height="620"></canvas>
+        <canvas id="overlay" width="920" height="620"></canvas>
+        <div class="tooltip" id="tooltip"></div>
+        <div class="rendering" id="rendering">hesaplanıyor…</div>
+      </div>
+      <div id="juliaPanel">
+        <div style="font-size:12.5px;color:var(--cyan);font-weight:700;margin-bottom:2px">Julia sabiti c₀ — bunu değiştir, tüm fraktal + yörünge değişir</div>
+        <label class="lbl">c₀ gerçel (Re) <b id="vJr">-0.700</b></label>
+        <input type="range" id="juliaRe" min="-1" max="1" step="0.005" value="-0.7">
+        <label class="lbl">c₀ sanal (Im) <b id="vJi">+0.270</b></label>
+        <input type="range" id="juliaIm" min="-1" max="1" step="0.005" value="0.27">
+        <div class="presets" id="juliaPresets"></div>
+      </div>
+      <div class="hintbar">
+        <button class="btn small" id="zoomIn">＋ Yakınlaş</button>
+        <button class="btn small" id="zoomOut">－ Uzaklaş</button>
+        <button class="btn small" id="reset">⟲ Sıfırla</button>
+        <button class="btn small" id="lockBtn">○ Noktayı kilitle</button>
+        <span class="pill" id="viewPill">görünüm: —</span>
+      </div>
+      <div class="presets" id="presets"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#0d1117;border:1px solid #444"></span>siyah = içerde (kaçmıyor)</span>
+        <span><span class="sw" style="background:linear-gradient(90deg,#1e3a8a,#22d3ee,#f59e0b,#fff)"></span>renkli = dışarda (kaçış hızı)</span>
+        <span><span class="sw" style="background:#22d3ee"></span>çizgi = yörünge</span>
+        <span><span class="sw" style="background:#f43f5e"></span>artı = senin noktan</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Nokta analizi</h2>
+        <div class="badge bound" id="statusBadge"><span class="dot"></span><span id="statusText">nokta seçilmedi</span></div>
+        <dl class="kv">
+          <dt id="kvCLabel">c konumu</dt><dd id="kvC">—</dd>
+          <dt id="kvC0Row" style="display:none">julia c₀</dt><dd id="kvC0" style="display:none">—</dd>
+          <dt>kaçış iterasyonu</dt><dd id="kvEsc">—</dd>
+          <dt>son |z|</dt><dd id="kvZ">—</dd>
+          <dt>döngü periyodu</dt><dd id="kvPeriod">—</dd>
+          <dt>ses frekansı</dt><dd id="kvFreq">—</dd>
+        </dl>
+        <label class="lbl">Maks. iterasyon (detay) <b id="vIter">256</b></label>
+        <input type="range" id="maxIter" min="60" max="800" value="256" step="10">
+        <label class="lbl">Yörünge uzunluğu (çizgi) <b id="vOrbit">150</b></label>
+        <input type="range" id="orbitLen" min="30" max="300" value="150" step="10">
+      </div>
+      <div class="card">
+        <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Yörünge grafiği — Re / Im vs n</h2>
+        <canvas class="mini" id="orbitPlot" width="600" height="240"></canvas>
+        <div class="legend"><span><span class="sw" style="background:#22d3ee"></span>Re(zₙ)</span><span><span class="sw" style="background:#f59e0b"></span>Im(zₙ)</span></div>
+      </div>
+      <div class="card">
+        <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h3l2-7 3 14 3-10 2 3h7"/></svg>Osiloskop + ses</h2>
+        <div class="row">
+          <button class="btn primary" id="soundBtn">♪ Sesi aç</button>
+          <button class="btn small" id="muteBtn" style="display:none">sessize al</button>
+        </div>
+        <label class="lbl">Ses seviyesi <b id="vVol">35%</b></label>
+        <input type="range" id="vol" min="0" max="100" value="35">
+        <div class="scope-head"><span id="scopeLabel">X → frekans · Y → tını</span><span id="freqLabel">— Hz</span></div>
+        <canvas class="mini" id="scope" width="600" height="220"></canvas>
+        <div style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:8px">Soldan sağa <b style="color:#fff">tizleşir</b> (160→520 Hz), yukarı-aşağı <b style="color:#fff">tınıyı</b> değiştirir. Kaçan = parlak keskin, içerdeki = yumuşak pes. Döngüselde vibrato periyoda kilitlenir.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="explain">
+    <div class="step"><strong>1 · Çizgi dışarı fırlıyorsa → KAÇIYOR</strong>Renkli bölgedesin. Kaçış iterasyonu küçükse ses tiz ve keskin, osiloskop sivri dalga gösterir.</div>
+    <div class="step"><strong>2 · Çizgi dolanıp kalıyorsa → DÖNGÜSEL</strong>Siyah bölgedesin. Rozet "dönem-N" olur, ses yumuşar, vibrato döngüye kilitlenir. Julia'da c₀'yı değiştirip bütün ailenin nasıl değiştiğini izle.</div>
+    <div class="step"><strong>3 · Sekmeler farklı evren</strong>Mandelbrot: c uzayı. Julia: aynı formülün z₀ uzayı (c₀ sabit). Burning Ship'te mutlak değer gemiyi, Tricorn'da eşlenik aynalamayı, Multibrot-3'te küp almayı izle.</div>
+  </div>
+  <footer>kaçış yarıçapı |z| &gt; 2 · periyot tespiti son 40 adımda ε = 10⁻⁴</footer>
+</div>
+
+<script>
+(()=> {
+"use strict";
+const FW=920, FH=620;
+const fractal=document.getElementById('fractal'), overlay=document.getElementById('overlay'), stage=document.getElementById('stage');
+const tooltip=document.getElementById('tooltip'), renderingEl=document.getElementById('rendering');
+const fctx=fractal.getContext('2d'), octx=overlay.getContext('2d');
+const pctx=document.getElementById('orbitPlot').getContext('2d');
+const scopeC=document.getElementById('scope'), sctx=scopeC.getContext('2d');
+const $=id=>document.getElementById(id);
+
+// ---- fraktal tanımları ----
+const DEFS={
+  mandelbrot:{label:'Mandelbrot',sub:'z² + c · c-uzayı',formula:'z<sub>n+1</sub> = z<sub>n</sub>² + c &nbsp;·&nbsp; z<sub>0</sub>=0',mode:'c',
+    view:{cx:-0.5,cy:0,w:3.1}, iter:(zr,zi,cr,ci)=>[zr*zr-zi*zi+cr,2*zr*zi+ci],
+    presets:[{n:'Tam görünüm',re:-0.5,im:0,w:3.1},{n:'Dönem-2 ampul',re:-1,im:0,w:1.2},{n:'Seahorse vadisi',re:-0.75,im:0.15,w:0.5},{n:'Spiral',re:-0.2,im:0.75,w:0.6}]},
+  julia:{label:'Julia',sub:'z² + c₀ · z₀-uzayı',formula:'z<sub>n+1</sub> = z<sub>n</sub>² + c<sub>0</sub> &nbsp;·&nbsp; z<sub>0</sub>=faren',mode:'julia',param:{re:-0.7,im:0.27},
+    view:{cx:0,cy:0,w:3.2}, iter:(zr,zi,cr,ci)=>[zr*zr-zi*zi+cr,2*zr*zi+ci],
+    presets:[{n:'Tam görünüm',re:0,im:0,w:3.2},{n:'Merkez spiral',re:0,im:0,w:1.2}],
+    cpresets:[{n:'Dendrit',re:-0.7,im:0.27},{n:'Tavşan',re:-0.123,im:0.745},{n:'Ejderha',re:-0.8,im:0.156},{n:'Kutup',re:0.285,im:0.01},{n:'Disk',re:-0.4,im:0.6}]},
+  ship:{label:'Burning Ship',sub:'(|z|)² + c',formula:'z<sub>n+1</sub> = (|Re z<sub>n</sub>| + i|Im z<sub>n</sub>|)² + c',mode:'c',
+    view:{cx:-0.4,cy:-0.55,w:3.6}, iter:(zr,zi,cr,ci)=>{const a=Math.abs(zr),b=Math.abs(zi);return [a*a-b*b+cr,2*a*b+ci];},
+    presets:[{n:'Tam gemi',re:-0.4,im:-0.55,w:3.6},{n:'Burun',re:-1.77,im:-0.03,w:0.45},{n:'Direk',re:-0.9,im:-0.85,w:0.9},{n:'Kıç detayı',re:-1.2,im:-0.35,w:0.7}]},
+  tricorn:{label:'Tricorn',sub:'conj(z)² + c',formula:'z<sub>n+1</sub> = conj(z<sub>n</sub>)² + c',mode:'c',
+    view:{cx:0,cy:0,w:3.4}, iter:(zr,zi,cr,ci)=>[zr*zr-zi*zi+cr,-2*zr*zi+ci],
+    presets:[{n:'Tam görünüm',re:0,im:0,w:3.4},{n:'Üst taç',re:0,im:0.85,w:1.1},{n:'Sol spiral',re:-0.55,im:0.35,w:0.9}]},
+  cubic:{label:'Multibrot-3',sub:'z³ + c',formula:'z<sub>n+1</sub> = z<sub>n</sub>³ + c &nbsp;·&nbsp; z<sub>0</sub>=0',mode:'c',
+    view:{cx:0,cy:0,w:3.2}, iter:(zr,zi,cr,ci)=>[zr*zr*zr-3*zr*zi*zi+cr,3*zr*zr*zi-zi*zi*zi+ci],
+    presets:[{n:'Tam görünüm',re:0,im:0,w:3.2},{n:'Tomurcuk',re:0.45,im:0.45,w:1.0},{n:'Simetri',re:-0.5,im:0.5,w:1.0}]}
+};
+let cur='mandelbrot';
+const views={}; for(const k in DEFS) views[k]={...DEFS[k].view};
+const P={maxIter:256,orbitLen:150,hover:{re:-0.75,im:0.12},locked:null,dragging:false};
+
+const kvC=$('kvC'),kvC0=$('kvC0'),kvC0Row=$('kvC0Row'),kvCLabel=$('kvCLabel'),kvEsc=$('kvEsc'),kvZ=$('kvZ'),kvPeriod=$('kvPeriod'),kvFreq=$('kvFreq');
+const badge=$('statusBadge'),statusText=$('statusText'),viewPill=$('viewPill'),freqLabel=$('freqLabel'),scopeLabel=$('scopeLabel');
+
+function V(){return views[cur];}
+function upp(){return V().w/FW;}
+function complexAt(px,py){const u=upp(),v=V();return{re:v.cx+(px-FW/2)*u,im:v.cy-(py-FH/2)*u};}
+function pixelAt(re,im){const u=upp(),v=V();return{x:FW/2+(re-v.cx)/u,y:FH/2-(im-v.cy)/u};}
+function eventPos(e){const r=fractal.getBoundingClientRect();return{x:(e.clientX-r.left)*FW/r.width,y:(e.clientY-r.top)*FH/r.height};}
+function activePoint(){return P.locked||P.hover;}
+
+// ---- sekmeler ----
+const tabsEl=$('tabs');
+for(const k in DEFS){
+  const b=document.createElement('button');b.className='tab'+(k===cur?' active':'');b.dataset.k=k;
+  b.innerHTML=DEFS[k].label+'<small>'+DEFS[k].sub+'</small>';
+  b.onclick=()=>switchFractal(k);
+  tabsEl.appendChild(b);
+}
+function switchFractal(k){
+  cur=k; P.locked=null; P.hover=null;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.k===k));
+  $('formulaBox').innerHTML=DEFS[k].formula;
+  $('stageTitle').textContent=DEFS[k].label+' — gezdir, tekerlekle yakınlaş, sürükleyerek kaydır';
+  $('juliaPanel').classList.toggle('on',k==='julia');
+  $('lockBtn').textContent='○ Noktayı kilitle';
+  const showJ=k==='julia';
+  kvC0.style.display=showJ?'':'none'; kvC0Row.style.display=showJ?'':'none';
+  kvCLabel.textContent=showJ?'z₀ konumu':'c konumu';
+  buildPresets(); syncJuliaUI(); scheduleRender(); refresh();
+}
+
+// ---- render ----
+let renderTimer=null;
+function scheduleRender(){renderingEl.style.display='block';clearTimeout(renderTimer);renderTimer=setTimeout(renderFractal,60);}
+function renderFractal(){
+  const def=DEFS[cur],maxIter=P.maxIter;
+  const img=fctx.createImageData(FW,FH),d=img.data,u=upp(),v=V();
+  const re0=v.cx-(FW/2)*u, imTop=v.cy+(FH/2)*u;
+  const isM=cur==='mandelbrot';
+  const jr=def.param?def.param.re:0, ji=def.param?def.param.im:0;
+  for(let py=0;py<FH;py++){
+    const pim=imTop-py*u;
+    for(let px=0;px<FW;px++){
+      const pre=re0+px*u;
+      let zr,zi,cr,ci;
+      if(def.mode==='julia'){zr=pre;zi=pim;cr=jr;ci=ji;}
+      else{zr=0;zi=0;cr=pre;ci=pim;}
+      let n=0,r2=0;
+      if(isM){
+        const q=(cr-0.25)*(cr-0.25)+ci*ci;
+        if(q*(q+(cr-0.25))<0.25*ci*ci||(cr+1)*(cr+1)+ci*ci<0.0625){n=maxIter;}
+      }
+      while(n<maxIter){
+        const nz=def.iter(zr,zi,cr,ci);zr=nz[0];zi=nz[1];r2=zr*zr+zi*zi;
+        if(r2>4)break;n++;
+      }
+      const idx=(py*FW+px)*4;
+      if(n>=maxIter){d[idx]=13;d[idx+1]=17;d[idx+2]=26;d[idx+3]=255;}
+      else{
+        let nu=n;if(r2>0){try{nu=n+1-Math.log2(Math.log(Math.sqrt(r2)));}catch(e){}}
+        const t=Math.min(1,Math.max(0,nu/maxIter)),tt=Math.pow(t,0.75);
+        d[idx]=Math.min(255,9*(1-tt)*tt*tt*tt*255+tt*tt*40);
+        d[idx+1]=Math.min(255,15*(1-tt)*(1-tt)*tt*tt*255*0.9+tt*60);
+        d[idx+2]=Math.min(255,8.5*(1-tt)*(1-tt)*(1-tt)*tt*255+60+tt*120);
+        d[idx+3]=255;
+      }
+    }
+  }
+  fctx.putImageData(img,0,0);
+  renderingEl.style.display='none';
+  viewPill.textContent='görünüm: '+v.cx.toFixed(4)+(v.cy>=0?'+':'')+v.cy.toFixed(4)+'i · genişlik '+v.w.toExponential(2);
+}
+
+// ---- yörünge ----
+function computeOrbit(pt,N){
+  const def=DEFS[cur];
+  let zr,zi,cr,ci;
+  if(def.mode==='julia'){zr=pt.re;zi=pt.im;cr=def.param.re;ci=def.param.im;}
+  else{zr=0;zi=0;cr=pt.re;ci=pt.im;}
+  const pts=def.mode==='julia'?[{re:zr,im:zi}]:[{re:0,im:0}];
+  for(let i=1;i<=N;i++){
+    const nz=def.iter(zr,zi,cr,ci);zr=nz[0];zi=nz[1];
+    pts.push({re:zr,im:zi});
+    if(zr*zr+zi*zi>4)return{pts,escaped:true,escapeIter:i,fr:zr,fi:zi};
+  }
+  return{pts,escaped:false,escapeIter:-1,fr:zr,fi:zi};
+}
+function detectPeriod(pts){
+  if(pts.length<12)return -1;
+  const L=pts[pts.length-1],from=Math.max(0,pts.length-41);
+  for(let j=pts.length-2;j>=from;j--){const dx=L.re-pts[j].re,dy=L.im-pts[j].im;if(dx*dx+dy*dy<1e-8)return pts.length-1-j;}
+  return -1;
+}
+function drawOverlay(){
+  octx.clearRect(0,0,FW,FH);
+  const pt=activePoint();if(!pt)return;
+  const{pts,escaped}=computeOrbit(pt,P.orbitLen);
+  octx.lineWidth=2;octx.lineJoin='round';octx.lineCap='round';
+  octx.shadowColor=escaped?'rgba(244,63,94,.8)':'rgba(34,211,238,.8)';octx.shadowBlur=8;
+  octx.strokeStyle=escaped?'#fb7185':'#22d3ee';
+  octx.beginPath();let pen=false;
+  for(const q of pts){
+    const s=pixelAt(q.re,q.im);
+    if(!isFinite(s.x)||!isFinite(s.y)||Math.abs(s.x-FW/2)>FW*8||Math.abs(s.y-FH/2)>FH*8){pen=false;continue;}
+    if(!pen){octx.moveTo(s.x,s.y);pen=true;}else octx.lineTo(s.x,s.y);
+  }
+  octx.stroke();octx.shadowBlur=0;
+  const step=Math.max(1,Math.floor(pts.length/60));
+  for(let i=0;i<pts.length;i+=step){
+    const s=pixelAt(pts[i].re,pts[i].im);
+    if(Math.abs(s.x-FW/2)>FW||Math.abs(s.y-FH/2)>FH)continue;
+    octx.fillStyle=i===0?'#a7f3d0':'rgba(255,255,255,.85)';
+    octx.beginPath();octx.arc(s.x,s.y,i===0?5:2.2,0,7);octx.fill();
+  }
+  const c=pixelAt(pt.re,pt.im);
+  octx.strokeStyle='#f43f5e';octx.lineWidth=2.5;octx.beginPath();
+  octx.moveTo(c.x-11,c.y);octx.lineTo(c.x+11,c.y);octx.moveTo(c.x,c.y-11);octx.lineTo(c.x,c.y+11);octx.stroke();
+  octx.fillStyle='#f43f5e';octx.beginPath();octx.arc(c.x,c.y,4,0,7);octx.fill();
+}
+function drawOrbitPlot(){
+  const W=600,H=240;pctx.clearRect(0,0,W,H);pctx.fillStyle='#0b0e16';pctx.fillRect(0,0,W,H);
+  pctx.strokeStyle='#232840';pctx.beginPath();pctx.moveTo(0,H/2);pctx.lineTo(W,H/2);pctx.stroke();
+  const pt=activePoint();
+  if(!pt){pctx.fillStyle='#6b7390';pctx.font='22px Outfit';pctx.fillText('fareyi fraktala götür',24,H/2-12);return;}
+  const{pts,escaped}=computeOrbit(pt,P.orbitLen),n=pts.length;
+  const yOf=v=>{const c=Math.max(-2.5,Math.min(2.5,v));return H/2-c*(H/2-14)/2.5;};
+  const xOf=i=>10+i/P.orbitLen*(W-20);
+  const series=(key,color)=>{pctx.strokeStyle=color;pctx.lineWidth=2.5;pctx.beginPath();for(let i=0;i<n;i++){const x=xOf(i),y=yOf(pts[i][key]);i?pctx.lineTo(x,y):pctx.moveTo(x,y);}pctx.stroke();};
+  series('re','#22d3ee');series('im','#f59e0b');
+  if(escaped){const ex=xOf(n-1);pctx.strokeStyle='rgba(244,63,94,.7)';pctx.setLineDash([6,5]);pctx.beginPath();pctx.moveTo(ex,8);pctx.lineTo(ex,H-8);pctx.stroke();pctx.setLineDash([]);pctx.fillStyle='#ff8aa0';pctx.font='bold 20px JetBrains Mono';pctx.fillText('kaçış n='+(n-1),Math.min(ex+8,W-150),26);}
+}
+function updateStats(){
+  const pt=activePoint();
+  if(!pt){statusText.textContent='nokta seçilmedi';badge.className='badge bound';kvC.textContent='—';kvEsc.textContent='—';kvZ.textContent='—';kvPeriod.textContent='—';kvFreq.textContent='—';freqLabel.textContent='— Hz';return;}
+  const{pts,escaped,escapeIter,fr,fi}=computeOrbit(pt,P.orbitLen);
+  const lastR=Math.sqrt(fr*fr+fi*fi),period=escaped?-1:detectPeriod(pts);
+  const def=DEFS[cur];
+  kvC.textContent=`${pt.re.toFixed(5)} ${pt.im>=0?'+':''}${pt.im.toFixed(5)}${def.mode==='julia'?' (z₀)':'i'}`;
+  if(def.mode==='julia')kvC0.textContent=`${def.param.re.toFixed(4)} ${def.param.im>=0?'+':''}${def.param.im.toFixed(4)}i`;
+  kvZ.textContent=isFinite(lastR)?lastR.toFixed(5):'∞';
+  const f=mapFreq(pt.re,pt.im);
+  kvFreq.textContent=`${f.f1.toFixed(1)} Hz + ${f.f2.toFixed(1)} Hz`;freqLabel.textContent=`${f.f1.toFixed(0)} Hz`;
+  if(escaped){badge.className='badge escape';statusText.textContent=`KAÇIYOR — ${escapeIter}. adımda taştı`;kvEsc.textContent=`${escapeIter} / ${P.orbitLen} ( |z|>2 )`;kvPeriod.textContent='yok (kaçıyor)';}
+  else if(period>0){badge.className='badge cycle';statusText.textContent=`DÖNGÜSEL — yaklaşık dönem-${period}`;kvEsc.textContent='kaçmıyor (sınırlı)';kvPeriod.textContent=`~${period}`;}
+  else{badge.className='badge bound';statusText.textContent='SINIRLI — içerde';kvEsc.textContent='kaçmıyor (sınırlı)';kvPeriod.textContent='belirsiz / kaotik';}
+  updateAudio(pt,{escaped,escapeIter,period});
+}
+
+// ---- ses ----
+let AC=null,osc1=null,osc2=null,lfo=null,lfoGain=null,filter=null,master=null,analyser=null,soundOn=false,muted=false;
+function mapFreq(re,im){const nx=Math.min(1,Math.max(0,(re+2)/4));const f1=160*Math.pow(2,nx*1.7);return{f1,f2:f1*(1+im*0.18)};}
+function ensureAudio(){
+  if(AC)return;AC=new(window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain();master.gain.value=+$('vol').value/100*0.5;
+  filter=AC.createBiquadFilter();filter.type='lowpass';filter.frequency.value=1200;
+  analyser=AC.createAnalyser();analyser.fftSize=2048;
+  osc1=AC.createOscillator();osc1.type='sine';osc1.frequency.value=220;
+  osc2=AC.createOscillator();osc2.type='triangle';osc2.frequency.value=221;
+  lfo=AC.createOscillator();lfo.frequency.value=5;lfoGain=AC.createGain();lfoGain.gain.value=6;
+  const g2=AC.createGain();g2.gain.value=0.5;
+  lfo.connect(lfoGain);lfoGain.connect(osc1.frequency);lfoGain.connect(osc2.frequency);
+  osc1.connect(filter);osc2.connect(g2);g2.connect(filter);
+  filter.connect(master);master.connect(analyser);analyser.connect(AC.destination);
+  osc1.start();osc2.start();lfo.start();
+}
+function updateAudio(pt,info){
+  if(!AC||!soundOn||muted)return;const t=AC.currentTime,{f1,f2}=mapFreq(pt.re,pt.im);
+  osc1.frequency.setTargetAtTime(f1,t,0.03);osc2.frequency.setTargetAtTime(Math.max(40,f2),t,0.03);
+  if(info.escaped){const s=1-Math.min(1,info.escapeIter/P.maxIter);osc1.type='sawtooth';osc2.type='square';filter.frequency.setTargetAtTime(900+3800*s,t,0.05);lfo.frequency.setTargetAtTime(3+9*s,t,0.1);lfoGain.gain.setTargetAtTime(4+22*s,t,0.1);}
+  else{osc1.type='sine';osc2.type='triangle';filter.frequency.setTargetAtTime(700,t,0.08);
+    if(info.period>0){lfo.frequency.setTargetAtTime(Math.min(18,Math.max(0.6,f1/info.period/24)),t,0.15);lfoGain.gain.setTargetAtTime(10,t,0.15);}
+    else{lfo.frequency.setTargetAtTime(1.2,t,0.2);lfoGain.gain.setTargetAtTime(5,t,0.2);}}
+}
+$('soundBtn').onclick=()=>{
+  if(!soundOn){ensureAudio();AC.resume();soundOn=true;muted=false;
+    $('soundBtn').textContent='♫ Ses açık — tıkla kapat';$('soundBtn').classList.add('danger-on');$('muteBtn').style.display='';
+    const pt=activePoint();if(pt){const o=computeOrbit(pt,P.orbitLen);updateAudio(pt,{escaped:o.escaped,escapeIter:o.escapeIter,period:detectPeriod(o.pts)});}
+  }else{soundOn=!soundOn;if(!soundOn){$('soundBtn').textContent='♪ Sesi aç';$('soundBtn').classList.remove('danger-on');}else{AC.resume();$('soundBtn').textContent='♫ Ses açık — tıkla kapat';$('soundBtn').classList.add('danger-on');}}
+};
+$('muteBtn').onclick=()=>{muted=!muted;if(master)master.gain.value=muted?0:+$('vol').value/100*0.5;$('muteBtn').textContent=muted?'sesi geri aç':'sessize al';};
+$('vol').oninput=e=>{$('vVol').textContent=e.target.value+'%';if(master&&!muted)master.gain.setTargetAtTime(e.target.value/100*0.5,AC.currentTime,0.02);};
+function drawScope(){
+  requestAnimationFrame(drawScope);
+  const W=scopeC.width,H=scopeC.height;
+  sctx.fillStyle='#0b0e16';sctx.fillRect(0,0,W,H);
+  sctx.strokeStyle='#1c2340';sctx.lineWidth=1;
+  for(let gx=0;gx<W;gx+=60){sctx.beginPath();sctx.moveTo(gx,0);sctx.lineTo(gx,H);sctx.stroke();}
+  sctx.beginPath();sctx.moveTo(0,H/2);sctx.lineTo(W,H/2);sctx.stroke();
+  sctx.lineWidth=3;sctx.strokeStyle='#10b981';sctx.shadowColor='rgba(16,185,129,.7)';sctx.shadowBlur=10;sctx.beginPath();
+  if(AC&&soundOn&&!muted){
+    const buf=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(buf);
+    for(let x=0;x<W;x++){const v=buf[Math.floor(x/W*buf.length)]/128-1,y=H/2+v*H*0.42;x?sctx.lineTo(x,y):sctx.moveTo(x,y);}
+    scopeLabel.textContent='CANLI — hoparlörden çıkan dalga';
+  }else{
+    const pt=activePoint();
+    if(pt){const{pts}=computeOrbit(pt,Math.min(120,P.orbitLen));
+      for(let x=0;x<W;x++){const idx=Math.floor(x/W*pts.length)%pts.length,v=Math.max(-1.5,Math.min(1.5,pts[idx].re))/1.5,y=H/2+v*H*0.36;x?sctx.lineTo(x,y):sctx.moveTo(x,y);}
+      scopeLabel.textContent='ÖNİZLEME — Re(zₙ) dalgası (sesi aç, gerçeğini duy)';
+    }else{const t=performance.now()/1000;for(let x=0;x<W;x++){const y=H/2+Math.sin(x*0.05+t*2)*H*0.1;x?sctx.lineTo(x,y):sctx.moveTo(x,y);}scopeLabel.textContent='BOŞTA — fareyi fraktala götür';}
+  }
+  sctx.stroke();sctx.shadowBlur=0;
+}
+
+// ---- etkileşim ----
+let downPos=null,downView=null,moved=false;
+stage.addEventListener('mousedown',e=>{P.dragging=true;moved=false;downPos=eventPos(e);downView={...V()};});
+window.addEventListener('mouseup',e=>{
+  if(P.dragging&&!moved&&e.target===fractal){
+    const p=eventPos(e),c=complexAt(p.x,p.y);
+    if(P.locked){P.locked=null;$('lockBtn').textContent='○ Noktayı kilitle';}
+    else{P.locked=c;$('lockBtn').textContent='● Kilidi aç ('+c.re.toFixed(3)+(c.im>=0?'+':'')+c.im.toFixed(3)+'i)';}
+    refresh();
+  }
+  P.dragging=false;
+});
+stage.addEventListener('mousemove',e=>{
+  const p=eventPos(e);
+  if(P.dragging){
+    if(Math.hypot(p.x-downPos.x,p.y-downPos.y)>3)moved=true;
+    if(moved){const u=upp(),v=V();v.cx=downView.cx-(p.x-downPos.x)*u;v.cy=downView.cy+(p.y-downPos.y)*u;scheduleRender();drawOverlay();return;}
+  }
+  P.hover=complexAt(p.x,p.y);
+  const r=fractal.getBoundingClientRect();
+  tooltip.style.display='block';tooltip.style.left=((e.clientX-r.left)+14)+'px';tooltip.style.top=((e.clientY-r.top)-10)+'px';
+  const c=P.hover;tooltip.textContent=(cur==='julia'?'z₀ = ':'c = ')+c.re.toFixed(4)+(c.im>=0?'+':'')+c.im.toFixed(4)+'i';
+  refresh();
+});
+stage.addEventListener('mouseleave',()=>{tooltip.style.display='none';if(!P.locked){P.hover=null;refresh();}});
+stage.addEventListener('wheel',e=>{e.preventDefault();const p=eventPos(e),before=complexAt(p.x,p.y),v=V();
+  v.w=Math.min(8,Math.max(1e-7,v.w*Math.exp(e.deltaY*0.0012)));const u=upp();
+  v.cx=before.re-(p.x-FW/2)*u;v.cy=before.im+(p.y-FH/2)*u;scheduleRender();drawOverlay();},{passive:false});
+stage.addEventListener('touchstart',e=>{if(e.touches.length===1){const t=e.touches[0],r=fractal.getBoundingClientRect();P.hover=complexAt((t.clientX-r.left)*FW/r.width,(t.clientY-r.top)*FH/r.height);refresh();}},{passive:true});
+stage.addEventListener('touchmove',e=>{if(e.touches.length===1){e.preventDefault();const t=e.touches[0],r=fractal.getBoundingClientRect();P.hover=complexAt((t.clientX-r.left)*FW/r.width,(t.clientY-r.top)*FH/r.height);refresh();}},{passive:false});
+
+function refresh(){drawOverlay();drawOrbitPlot();updateStats();}
+function zoom(f){const v=V();v.w=Math.min(8,Math.max(1e-7,v.w*f));scheduleRender();drawOverlay();}
+$('zoomIn').onclick=()=>zoom(0.6);$('zoomOut').onclick=()=>zoom(1.6);
+$('reset').onclick=()=>{views[cur]={...DEFS[cur].view};P.locked=null;$('lockBtn').textContent='○ Noktayı kilitle';scheduleRender();refresh();};
+$('lockBtn').onclick=()=>{if(P.locked){P.locked=null;$('lockBtn').textContent='○ Noktayı kilitle';}else if(P.hover){P.locked={...P.hover};$('lockBtn').textContent='● Kilidi aç';}refresh();};
+$('maxIter').oninput=e=>{P.maxIter=+$('maxIter').value;$('vIter').textContent=P.maxIter;scheduleRender();refresh();};
+$('orbitLen').oninput=e=>{P.orbitLen=+$('orbitLen').value;$('vOrbit').textContent=P.orbitLen;refresh();};
+
+// Julia kontrolleri
+function syncJuliaUI(){
+  const j=DEFS.julia.param;
+  $('juliaRe').value=j.re;$('juliaIm').value=j.im;
+  $('vJr').textContent=(j.re>=0?'+':'')+j.re.toFixed(3);
+  $('vJi').textContent=(j.im>=0?'+':'')+j.im.toFixed(3);
+}
+$('juliaRe').oninput=e=>{DEFS.julia.param.re=+e.target.value;syncJuliaUI();if(cur==='julia'){scheduleRender();refresh();}};
+$('juliaIm').oninput=e=>{DEFS.julia.param.im=+e.target.value;syncJuliaUI();if(cur==='julia'){scheduleRender();refresh();}};
+const jp=$('juliaPresets');
+DEFS.julia.cpresets.forEach(p=>{const b=document.createElement('button');b.className='btn small';b.textContent=p.n;b.onclick=()=>{DEFS.julia.param={re:p.re,im:p.im};syncJuliaUI();if(cur==='julia'){scheduleRender();refresh();}};jp.appendChild(b);});
+
+function buildPresets(){
+  const pr=$('presets');pr.innerHTML='';
+  DEFS[cur].presets.forEach(p=>{
+    const b=document.createElement('button');b.className='btn small';b.textContent=p.n;
+    b.onclick=()=>{views[cur]={cx:p.re,cy:p.im,w:p.w};P.locked={re:p.re,im:p.im};$('lockBtn').textContent='● Kilidi aç ('+p.n+')';scheduleRender();refresh();};
+    pr.appendChild(b);
+  });
+}
+buildPresets();syncJuliaUI();renderFractal();refresh();drawScope();
+})();
+</script>
+</body>
+</html>
